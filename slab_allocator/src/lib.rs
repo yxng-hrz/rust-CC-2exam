@@ -11,6 +11,14 @@ struct FreeNode {
     next: Option<NonNull<FreeNode>>,
 }
 
+pub struct Slab {
+    memory: NonNull<u8>,
+    free_list: Option<NonNull<FreeNode>>,
+    object_size: usize,
+    capacity: usize,
+    allocated: usize,
+}
+
 #[cfg(test)]
 mod tests {
     extern crate std;
