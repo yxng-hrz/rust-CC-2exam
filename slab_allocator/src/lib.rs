@@ -1,17 +1,10 @@
 #![no_std]
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+use core::alloc::{GlobalAlloc, Layout};
+use core::ptr::NonNull;
+use core::mem;
 
 #[cfg(test)]
 mod tests {
     extern crate std;
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
 }
