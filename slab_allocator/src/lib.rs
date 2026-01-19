@@ -124,6 +124,21 @@ impl Drop for Slab {
     }
 }
 
+pub struct SlabAllocator {
+    slabs: [Option<Slab>; 16],
+    object_size: usize,
+}
+
+impl SlabAllocator {
+    pub const fn new(object_size: usize) -> Self {
+        const NONE: Option<Slab> = None;
+        SlabAllocator {
+            slabs: [NONE; 16],
+            object_size,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate std;
