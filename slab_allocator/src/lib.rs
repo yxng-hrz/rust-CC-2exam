@@ -170,6 +170,48 @@ pub fn allocate(&mut self) -> Option<NonNull<u8>> {
     }
 }
 
+pub struct SlabCache {
+    small: SlabAllocator,
+    medium: SlabAllocator,
+    large: SlabAllocator,
+}
+
+impl SlabCache {
+    pub const fn new() -> Self {
+        SlabCache {
+            small: SlabAllocator::new(64),
+            medium: SlabAllocator::new(256),
+            large: SlabAllocator::new(512),
+        }
+    }
+
+    pub fn allocate(&mut self, layout: Layout) -> Option<NonNull<u8>> {
+        let size = layout.size();
+        
+        if size <= 64 {
+            self.small.allocate()
+        } else if size <= 256 {
+            self.medium.allocate()
+        } else if size <= 512 {
+            self.large.allocate()
+        } else {
+            None
+        }
+    }
+
+    pub fn deallocate(&mut self, ptr: NonNull<u8>, layout: Layout) {
+        let size = layout.size();
+        
+        if size <= 64 {
+            self.small.deallocate(ptr);
+        } else if size <= 256 {
+            self.medium.deallocate(ptr);
+        } else if size <= 512 {
+            self.large.deallocate(ptr);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate std;
