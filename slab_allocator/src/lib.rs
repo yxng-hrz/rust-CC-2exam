@@ -54,6 +54,8 @@ impl Slab {
         size.max(node_size).next_multiple_of(align)
     }
 
+    /// # Safety
+    /// Allocates raw memory that must be deallocated with the same layout.
     fn allocate_memory(size: usize) -> Option<NonNull<u8>> {
         let layout = Layout::from_size_align(size, mem::align_of::<usize>()).ok()?;
         unsafe {
@@ -62,6 +64,8 @@ impl Slab {
         }
     }
 
+    /// # Safety
+    /// Initializes free list by writing to uninitialized memory within the slab.
     fn init_free_list(&mut self) {
         let base = self.memory.as_ptr() as usize;
         let mut prev: Option<NonNull<FreeNode>> = None;
@@ -80,6 +84,8 @@ impl Slab {
         self.free_list = prev;
     }
 
+    /// # Safety
+    /// Removes node from free list, assuming the pointer is valid and properly aligned.
     pub fn allocate(&mut self) -> Option<NonNull<u8>> {
         let node = self.free_list?;
         
@@ -91,6 +97,8 @@ impl Slab {
         Some(node.cast())
     }
 
+    /// # Safety
+    /// Writes to the freed pointer, assuming it points to valid memory within this slab.
     pub fn deallocate(&mut self, ptr: NonNull<u8>) {
         let node_ptr = ptr.cast::<FreeNode>();
         
@@ -119,6 +127,8 @@ impl Slab {
 }
 
 impl Drop for Slab {
+    /// # Safety
+    /// Deallocates the slab memory using the same layout used during allocation.
     fn drop(&mut self) {
         let layout = Layout::from_size_align(SLAB_SIZE, mem::align_of::<usize>()).unwrap();
         unsafe {
@@ -217,10 +227,14 @@ impl SlabCache {
 pub struct GlobalSlabAllocator;
 
 unsafe impl GlobalAlloc for GlobalSlabAllocator {
+    /// # Safety
+    /// Caller must ensure the layout is valid and non-zero sized.
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         alloc(layout)
     }
 
+    /// # Safety
+    /// Pointer must have been allocated with the same layout via alloc.
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         dealloc(ptr, layout);
     }
