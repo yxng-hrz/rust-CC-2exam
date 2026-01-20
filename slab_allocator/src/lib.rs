@@ -404,4 +404,45 @@ mod tests {
         
         assert_eq!(addr1, addr2);
     }
+    #[test]
+    fn test_cache_oversized() {
+        let mut cache = SlabCache::new();
+        let layout = Layout::from_size_align(1024, 8).unwrap();
+        let ptr = cache.allocate(layout);
+        assert!(ptr.is_none());
+    }
+
+    #[test]
+    fn test_zero_size() {
+        let slab = Slab::new(0);
+        assert!(slab.is_none());
+    }
+
+    #[test]
+    fn test_large_object() {
+        let slab = Slab::new(MAX_OBJECT_SIZE + 1);
+        assert!(slab.is_none());
+    }
+
+    #[test]
+    fn test_alignment() {
+        let mut slab = Slab::new(17).unwrap();
+        let ptr = slab.allocate().unwrap();
+        let addr = ptr.as_ptr() as usize;
+        assert_eq!(addr % 8, 0);
+    }
+
+    #[test]
+    fn test_reuse_freed_memory() {
+        let mut slab = Slab::new(64).unwrap();
+        let ptr1 = slab.allocate().unwrap();
+        let addr1 = ptr1.as_ptr() as usize;
+        
+        slab.deallocate(ptr1);
+        
+        let ptr2 = slab.allocate().unwrap();
+        let addr2 = ptr2.as_ptr() as usize;
+        
+        assert_eq!(addr1, addr2);
+    }
 }
