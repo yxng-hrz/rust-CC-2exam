@@ -303,4 +303,64 @@ mod tests {
         let external = NonNull::new(0x1000 as *mut u8).unwrap();
         assert!(!slab.contains(external));
     }
+    #[test]
+    fn test_allocator_basic() {
+        let mut allocator = SlabAllocator::new(64);
+        let ptr = allocator.allocate();
+        assert!(ptr.is_some());
+        
+        let ptr = ptr.unwrap();
+        allocator.deallocate(ptr);
+    }
+
+    #[test]
+    fn test_allocator_multiple_slabs() {
+        let mut allocator = SlabAllocator::new(64);
+        let mut ptrs = Vec::new();
+
+        for _ in 0..200 {
+            if let Some(ptr) = allocator.allocate() {
+                ptrs.push(ptr);
+            }
+        }
+
+        assert!(ptrs.len() >= 100);
+
+        for ptr in ptrs {
+            allocator.deallocate(ptr);
+        }
+    }
+
+    #[test]
+    fn test_cache_small_allocation() {
+        let mut cache = SlabCache::new();
+        let layout = Layout::from_size_align(32, 8).unwrap();
+        let ptr = cache.allocate(layout);
+        assert!(ptr.is_some());
+        
+        let ptr = ptr.unwrap();
+        cache.deallocate(ptr, layout);
+    }
+
+    #[test]
+    fn test_cache_medium_allocation() {
+        let mut cache = SlabCache::new();
+        let layout = Layout::from_size_align(128, 8).unwrap();
+        let ptr = cache.allocate(layout);
+        assert!(ptr.is_some());
+        
+        let ptr = ptr.unwrap();
+        cache.deallocate(ptr, layout);
+    }
+
+    #[test]
+    fn test_cache_large_allocation() {
+        let mut cache = SlabCache::new();
+        let layout = Layout::from_size_align(400, 8).unwrap();
+        let ptr = cache.allocate(layout);
+        assert!(ptr.is_some());
+        
+        let ptr = ptr.unwrap();
+        cache.deallocate(ptr, layout);
+    }
 }
