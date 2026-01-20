@@ -1,8 +1,11 @@
 #![no_std]
 
+extern crate alloc;
+
 use core::alloc::{GlobalAlloc, Layout};
 use core::ptr::NonNull;
 use core::mem;
+use alloc::alloc::{alloc, dealloc};
 
 const SLAB_SIZE: usize = 4096;
 const MAX_OBJECT_SIZE: usize = 512;
@@ -44,7 +47,6 @@ impl Slab {
         slab.init_free_list();
         Some(slab)
     }
-    
 
     fn align_size(size: usize) -> usize {
         let align = mem::align_of::<FreeNode>().max(8);
@@ -55,7 +57,7 @@ impl Slab {
     fn allocate_memory(size: usize) -> Option<NonNull<u8>> {
         let layout = Layout::from_size_align(size, mem::align_of::<usize>()).ok()?;
         unsafe {
-            let ptr = core::alloc::alloc(layout);
+            let ptr = alloc(layout);
             NonNull::new(ptr)
         }
     }
@@ -115,11 +117,12 @@ impl Slab {
         addr >= base && addr < end
     }
 }
+
 impl Drop for Slab {
     fn drop(&mut self) {
         let layout = Layout::from_size_align(SLAB_SIZE, mem::align_of::<usize>()).unwrap();
         unsafe {
-            core::alloc::dealloc(self.memory.as_ptr(), layout);
+            dealloc(self.memory.as_ptr(), layout);
         }
     }
 }
@@ -138,8 +141,7 @@ impl SlabAllocator {
         }
     }
 
-
-pub fn allocate(&mut self) -> Option<NonNull<u8>> {
+    pub fn allocate(&mut self) -> Option<NonNull<u8>> {
         for slab in self.slabs.iter_mut().flatten() {
             if !slab.is_full() {
                 if let Some(ptr) = slab.allocate() {
@@ -216,18 +218,17 @@ pub struct GlobalSlabAllocator;
 
 unsafe impl GlobalAlloc for GlobalSlabAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        core::alloc::alloc(layout)
+        alloc(layout)
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        core::alloc::dealloc(ptr, layout);
+        dealloc(ptr, layout);
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-   use super::*;
+    use super::*;
 
     extern crate std;
     use std::vec::Vec;
@@ -303,6 +304,7 @@ mod tests {
         let external = NonNull::new(0x1000 as *mut u8).unwrap();
         assert!(!slab.contains(external));
     }
+
     #[test]
     fn test_allocator_basic() {
         let mut allocator = SlabAllocator::new(64);
@@ -363,47 +365,7 @@ mod tests {
         let ptr = ptr.unwrap();
         cache.deallocate(ptr, layout);
     }
-    #[test]
-    fn test_cache_oversized() {
-        let mut cache = SlabCache::new();
-        let layout = Layout::from_size_align(1024, 8).unwrap();
-        let ptr = cache.allocate(layout);
-        assert!(ptr.is_none());
-    }
 
-    #[test]
-    fn test_zero_size() {
-        let slab = Slab::new(0);
-        assert!(slab.is_none());
-    }
-
-    #[test]
-    fn test_large_object() {
-        let slab = Slab::new(MAX_OBJECT_SIZE + 1);
-        assert!(slab.is_none());
-    }
-
-    #[test]
-    fn test_alignment() {
-        let mut slab = Slab::new(17).unwrap();
-        let ptr = slab.allocate().unwrap();
-        let addr = ptr.as_ptr() as usize;
-        assert_eq!(addr % 8, 0);
-    }
-
-    #[test]
-    fn test_reuse_freed_memory() {
-        let mut slab = Slab::new(64).unwrap();
-        let ptr1 = slab.allocate().unwrap();
-        let addr1 = ptr1.as_ptr() as usize;
-        
-        slab.deallocate(ptr1);
-        
-        let ptr2 = slab.allocate().unwrap();
-        let addr2 = ptr2.as_ptr() as usize;
-        
-        assert_eq!(addr1, addr2);
-    }
     #[test]
     fn test_cache_oversized() {
         let mut cache = SlabCache::new();
